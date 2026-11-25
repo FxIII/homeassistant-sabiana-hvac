@@ -6,6 +6,8 @@ This module contains all the constants used throughout the integration,
 including API endpoints, configuration keys, and mapping dictionaries.
 """
 
+from __future__ import annotations
+
 from homeassistant.components.climate import (
     HVACMode,
 )

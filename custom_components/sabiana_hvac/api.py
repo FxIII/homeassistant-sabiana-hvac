@@ -6,6 +6,8 @@ This module provides functions to interact with the Sabiana API,
 including authentication, device management, and command sending.
 """
 
+from __future__ import annotations
+
 import base64
 import json
 import logging
@@ -13,6 +15,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
+import httpx
 from homeassistant.helpers.httpx_client import create_async_httpx_client
 from httpx_retries import Retry, RetryTransport
 
@@ -26,7 +29,6 @@ from .const import (
 from .models import JWT, SabianaDeviceState
 
 if TYPE_CHECKING:
-    import httpx
     from homeassistant.core import HomeAssistant
 
 _LOGGER = logging.getLogger(__name__)
@@ -420,7 +422,7 @@ def decode_last_data(hex_string: str) -> SabianaDeviceState:
             raw_state={"lastData": hex_string, "decoded_bytes": list(data)},
         )
 
-    except ValueError, IndexError:
+    except (ValueError, IndexError):
         _LOGGER.exception("Failed to decode lastData")
         return _create_empty_device_state(hex_string, error="decode_error")
 

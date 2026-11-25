@@ -6,6 +6,8 @@ This module handles the setup and configuration of the Sabiana HVAC
 integration through Home Assistant's config flow system.
 """
 
+from __future__ import annotations
+
 import logging
 from typing import Any
 

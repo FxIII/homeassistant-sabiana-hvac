@@ -2,11 +2,10 @@
 
 """Data models for Sabiana HVAC integration."""
 
-from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from __future__ import annotations
 
-if TYPE_CHECKING:
-    from datetime import datetime
+from dataclasses import dataclass
+from datetime import datetime
 
 
 @dataclass

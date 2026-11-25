@@ -17,6 +17,7 @@ import httpx
 from homeassistant.components.climate import (
     ClimateEntity,
     ClimateEntityFeature,
+    HVACAction,
     HVACMode,
 )
 from homeassistant.components.climate.const import (
@@ -115,6 +116,8 @@ class SabianaHvacClimateEntity(ClimateEntity, RestoreEntity):
         self._attr_fan_mode = FAN_AUTO
         self._attr_swing_mode = "Swing"
         self._attr_preset_mode = PRESET_NONE  # Initialize to PRESET_NONE, not None
+        self._valve_open: bool = False
+        self._wifi_rssi_dbm: int | None = None
         self._coordinator_listener_unsub = None
 
         # Optimistic state handling: Track when we last sent a command
@@ -162,6 +165,34 @@ class SabianaHvacClimateEntity(ClimateEntity, RestoreEntity):
     def _celsius_to_hex(self, temp: float) -> str:
         converted_value = int(temp * 10)
         return f"{converted_value:04x}"
+
+    @property
+    def hvac_action(self) -> HVACAction | None:
+        """Return the current running hvac operation if supported.
+
+        Needs to be one of HVACAction.*.
+        """
+        if self._attr_hvac_mode == HVACMode.OFF:
+            return HVACAction.OFF
+        if not self._valve_open:
+            return HVACAction.IDLE
+        if self._attr_hvac_mode == HVACMode.HEAT:
+            return HVACAction.HEATING
+        if self._attr_hvac_mode == HVACMode.COOL:
+            return HVACAction.COOLING
+        if self._attr_hvac_mode == HVACMode.FAN_ONLY:
+            return HVACAction.FAN
+        return HVACAction.IDLE
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return entity specific state attributes."""
+        attrs: dict[str, Any] = {
+            "valve_open": self._valve_open,
+        }
+        if self._wifi_rssi_dbm is not None:
+            attrs["wifi_rssi_dbm"] = self._wifi_rssi_dbm
+        return attrs
 
     @property
     def preset_modes(self) -> list[str]:
@@ -344,6 +375,11 @@ class SabianaHvacClimateEntity(ClimateEntity, RestoreEntity):
         if device_state.current_temperature is not None:
             self._attr_current_temperature = device_state.current_temperature
 
+        if device_state.valve_open is not None:
+            self._valve_open = device_state.valve_open
+        if device_state.wifi_rssi_dbm is not None:
+            self._wifi_rssi_dbm = device_state.wifi_rssi_dbm
+
         # Do NOT update fan_mode, preset_mode, hvac_mode, target_temperature
         # during the optimistic window. The device hasn't processed our command
         # yet, so coordinator data contains stale values that would revert the UI.
@@ -378,6 +414,9 @@ class SabianaHvacClimateEntity(ClimateEntity, RestoreEntity):
 
         if device_state.current_temperature is not None:
             self._attr_current_temperature = device_state.current_temperature
+
+        self._valve_open = bool(device_state.valve_open)
+        self._wifi_rssi_dbm = device_state.wifi_rssi_dbm
 
         if device_state.fan_mode is not None:
             old_fan = self._attr_fan_mode

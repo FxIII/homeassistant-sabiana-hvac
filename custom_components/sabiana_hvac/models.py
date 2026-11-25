@@ -30,3 +30,5 @@ class SabianaDeviceState:
     controller_model: str | None  # Controller model code (e.g., "5004" for Carisma Fly)
     auto_mode_available: bool  # Whether AUTO HVAC mode is supported (bit 2 of byte 7)
     raw_state: dict
+    valve_open: bool = False  # Whether valve/thermal demand is active (bit 1 of byte 7)
+    wifi_rssi_dbm: int | None = None  # Wi-Fi RSSI in -dBm (byte 26)

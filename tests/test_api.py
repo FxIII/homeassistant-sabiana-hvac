@@ -792,6 +792,7 @@ class _HexFields:
     summer_sp_raw: int = 220
     winter_sp_raw: int = 220
     auto_sp_raw: int = 220
+    extra: str = ""
 
 
 def _build_hex(**kwargs: str | int) -> str:
@@ -807,6 +808,7 @@ def _build_hex(**kwargs: str | int) -> str:
         + f"{f.summer_sp_raw:04x}"
         + f"{f.winter_sp_raw:04x}"
         + f"{f.auto_sp_raw:04x}"
+        + f.extra
     )
 
 
@@ -1068,6 +1070,41 @@ class TestDecodeLastDataAutoModeAvailable:
 
         state = decode_last_data("0000")
         assert state.auto_mode_available is False
+
+
+class TestDecodeLastDataValveAndRssi:
+    """Tests for valve open (bit 1 of byte 7) and Wi-Fi RSSI (byte 26)."""
+
+    def test_valve_closed_when_bit1_not_set(self) -> None:
+        """Power byte 0x01 (power ON, valve closed)."""
+        hex_data = _build_hex(power=0x01)
+        state = decode_last_data(hex_data)
+        assert state.power_on is True
+        assert state.valve_open is False
+
+    def test_valve_open_when_bit1_set(self) -> None:
+        """Power byte 0x03 (power ON + valve open)."""
+        hex_data = _build_hex(power=0x03)
+        state = decode_last_data(hex_data)
+        assert state.power_on is True
+        assert state.valve_open is True
+
+    def test_valve_closed_when_power_off(self) -> None:
+        """Power byte 0x02 without bit 0 (power OFF) → valve_open is False."""
+        hex_data = _build_hex(power=0x02)
+        state = decode_last_data(hex_data)
+        assert state.power_on is False
+        assert state.valve_open is False
+
+    def test_wifi_rssi_decoded_correctly(self) -> None:
+        """Byte 26 (index 26) contains RSSI in -dBm (e.g. 0x56 = -86 dBm)."""
+        # Bytes 0-17 are 18 bytes. We need bytes 18 to 26 (9 bytes -> 18 hex chars)
+        # Byte 18-25: 8 bytes of zeroes (16 hex chars)
+        # Byte 26: 0x56 (2 hex chars) -> -86 dBm
+        trailing_hex = "00" * 8 + "56"
+        hex_data = _build_hex(extra=trailing_hex)
+        state = decode_last_data(hex_data)
+        assert state.wifi_rssi_dbm == -86
 
 
 class TestDecodeLastDataEdgeCases:

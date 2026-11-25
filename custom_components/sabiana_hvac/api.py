@@ -393,10 +393,19 @@ def decode_last_data(hex_string: str) -> SabianaDeviceState:
         # Matches app: autoModeAvaliable = n[2] from getBitToBitOK
         auto_mode_available = bool(data[byte_auto_mode_flag] & 0x04)
 
+        # Decode valve open / active demand flag (bit 1 of byte 7)
+        # When heating/cooling is active and calling, bit 1 is set (e.g. 0x03 vs 0x01)
+        valve_open = bool(data[byte_power_sleep] & 0x02) if power_on else False
+
+        # Decode Wi-Fi RSSI (byte 26, value in -dBm)
+        wifi_rssi_dbm = (
+            -int(data[26]) if len(data) > 26 and data[26] > 0 else None
+        )
+
         # Diagnostic logging: dump all bytes relevant to decoding
         _LOGGER.debug(
             "Device %s decode: mode=%s (raw=%d), target=%.1f (sp_bytes=%d-%d), "
-            "current=%.1f, swing=%s, bytes[8-17]=[%s], full_hex=%s",
+            "current=%.1f, valve_open=%s, rssi=%s, swing=%s, bytes[8-17]=[%s], full_hex=%s",
             controller_model,
             hvac_mode,
             raw_mode,
@@ -404,6 +413,8 @@ def decode_last_data(hex_string: str) -> SabianaDeviceState:
             sp_high,
             sp_low,
             current_temp if current_temp is not None else 0.0,
+            valve_open,
+            wifi_rssi_dbm,
             swing_mode,
             " ".join(f"0x{data[i]:02X}" for i in range(8, min(18, len(data)))),
             hex_string,
@@ -420,6 +431,8 @@ def decode_last_data(hex_string: str) -> SabianaDeviceState:
             controller_model=controller_model,
             auto_mode_available=auto_mode_available,
             raw_state={"lastData": hex_string, "decoded_bytes": list(data)},
+            valve_open=valve_open,
+            wifi_rssi_dbm=wifi_rssi_dbm,
         )
 
     except (ValueError, IndexError):
@@ -446,6 +459,8 @@ def _create_empty_device_state(
         controller_model=None,
         auto_mode_available=False,
         raw_state=raw_state,
+        valve_open=False,
+        wifi_rssi_dbm=None,
     )
 
 
